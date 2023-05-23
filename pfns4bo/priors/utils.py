@@ -5,7 +5,6 @@ import random
 from functools import partial
 
 import torch
-import seaborn as sns
 
 from ..utils import set_locals_in_self, normalize_data
 from .prior import PriorDataLoader, Batch
@@ -58,7 +57,9 @@ def get_batch_to_dataloader(get_batch_method_):
 
     return DL
 
+
 def plot_features(data, targets, fig=None, categorical=True, plot_diagonal=True):
+    import seaborn as sns
     if torch.is_tensor(data):
         data = data.detach().cpu().numpy()
         targets = targets.detach().cpu().numpy()

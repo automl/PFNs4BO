@@ -1,15 +1,9 @@
-# PFNs4BO
+# PFNs Are Flexible Models for Real-World Bayesian Optimization
 
 
 ## Install
-First a standard installation
 ```bash
-pip install -e .
-```
-Now unzip the datasets with
-```python
-import pfns4bo
-pfns4bo.unzip_models()
+pip install pfns4bo
 ```
 
 
@@ -23,36 +17,42 @@ To use our model on discrete benchmarks, we recommend using our HPO-B interface 
 We called this interface like this for the eval's on HPO-B:
 
 ```python
+import pfns4bo
 import torch
 from pfns4bo.scripts.acquisition_functions import TransformerBOMethod
 from pfns4bo.scripts.tune_input_warping import fit_input_warping
-folder_with_models = 'pfns4bo/final_models/'
-device = 'cpu:0'
 
 # For HEBO+ 
-model_name = 'model_hebo_morebudget_9_unused_features_3.pt'
+model_path = pfns4bo.hebo_plus_model
 # For BNN
-#model_name = 'model_sampled_warp_simple_mlp_for_hpob_46.pt'
+# model_path = pfns4bo.bnn_model
 
 # for correctly specified search spaces (e.g. correctly applied log transformations)
-pfn_bo = TransformerBOMethod(torch.load(folder_with_models + model_name), device=device)
+pfn_bo = TransformerBOMethod(torch.load(model_path), device='cpu:0')
 
 # for mis-specified search spaces
-pfn_bo = TransformerBOMethod(torch.load(folder_with_models + model_name), fit_encoder=fit_input_warping, device=device)
+pfn_bo = TransformerBOMethod(torch.load(model_path), fit_encoder=fit_input_warping, device='cpu:0')
 ```
 The interface expects all features to be normalized to a [0,1] range and all features have to be scalars/floats.
 ```python
 import numpy as np
 
-X_obs = np.array() # of shape num_examples x num_features of scalars
-y_obs = np.array() # of shape num_examples
-X_pen = np.array() # of shape num_examples_pending x num_features
+X_obs = np.random.rand(4,1) # of shape num_examples x num_features of scalars
+y_obs = np.abs(X_obs[:,0] - .5) * 2. # of shape num_examples
+X_pen = np.linspace(0,1,100)[:,None] # of shape num_examples_pending x num_features
 
-assert (X_obs <= 1).all() and (X_obs >= 1).all() and (X_pen <= 1).all() and (X_pen >= 1).all()
+assert (X_obs <= 1).all() and (X_obs >= 0).all() and (X_pen <= 1).all() and (X_pen >= 0).all()
 index_to_be_queried_next_in_pending = pfn_bo.observe_and_suggest(X_obs, y_obs, X_pen, return_actual_ei=False)
 ```
 
 To use a different acquisition function than EI, you simply pass `acq_function='pi` or `acq_function='ucb'`.
+
+To explore the EI's of the model you can do
+```python
+index_to_be_queried_next_in_pending, eis = pfn_bo.observe_and_suggest(X_obs, y_obs, X_pen, return_actual_ei=True)
+```
+The `eis` are the EI's of the model, i.e. the EI's of the model's predictive distribution for each `X_pen`.
+
 
 ### Use on continuous benchmarks (also in `Tutorial_Continuous_Interface.ipynb`)
 To use our model on continuous setups, we recommend using the interface in `pfns4bo/pfn_bo_bayesmark.py`.
@@ -66,19 +66,20 @@ It can be used with both interfaces, but we only used it with the discrete inter
 This is the setup we used for our PD-1 experiments for example.
 ```python
 import torch
+import pfns4bo
 from pfns4bo.scripts.acquisition_functions import TransformerBOMethod
 
-model_path = 'pfns4bo/final_models/hebo_morebudget_9_unused_features_3_userpriorperdim2_8.pt'
 # the order of hps in our benchmark is 'lr_decay_factor', 'lr_initial', 'lr_power', 'opt_momentum', 'epoch', 'activation'
-pfn_bo = TransformerBOMethod(torch.load(model_path), style=\
-                     torch.tensor([
-                         .5, 3/4, 4/4,  # feature 1 has .5 prob to the prior where all max's lie in [.75,1.], 1-.5=.5 prob to the standard prior
-                         .25, 2/4, 3/4, # feature 2 has .25 prob is given to the prior where all max's lie in [.5,.75]...
-                         .1, 3/4, 4/4,
-                         0., 0/1, 1/1,
-                         .5, 3/4, 4/4,
-                         .5, 4/5, 5/5,
-                     ]).view(1,-1)
+pfn_bo = TransformerBOMethod(torch.load(pfns4bo.hebo_plus_userprior_model),
+    style=
+        torch.tensor([
+            .5, 3/4, 4/4,  # feature 1 has .5 prob to the prior where all max's lie in [.75,1.], 1-.5=.5 prob to the standard prior
+            .25, 2/4, 3/4, # feature 2 has .25 prob is given to the prior where all max's lie in [.5,.75]...
+            .1, 3/4, 4/4,
+            0., 0/1, 1/1,
+            .5, 3/4, 4/4,
+            .5, 4/5, 5/5,
+        ]).view(1,-1)
 )
 ```
 All bounds must have the form `(k/n,(k+1)/n)` for `n in {1,2,3,4,5}` and `k in set(range(k))`.
@@ -87,7 +88,11 @@ The PFN was only trained for these bounds.
 
 
 ## Train your own models (also in `Tutorial_Training.ipynb`)
-To train you simply need to call `train.train`.
+To train we recommend installing the package locally after cloning it,
+with `pip install -e .`.
+
+
+Now you simply need to call `train.train`.
 We give all necessary code. The most important bits are in the `priors` dir, e.g. `hebo_prior`, it stores the priors
 with which we train our models.
 

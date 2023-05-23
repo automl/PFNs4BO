@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pfns4bo"
-version = "0.0.1"
+version = "0.1.5"
 authors = [
 {name="Samuel Muller"},
 {name="Matthias Feurer"},
@@ -23,7 +23,7 @@ dependencies=[
         'requests>=2.23.0',
         'gpytorch>=1.5.0',
         'configspace>=0.4.21',
-        'seaborn==0.11',
+        #'seaborn==0.11',
         'tqdm>=4.62.1',
         'botorch>=0.7.2',
         'bayesmark>=0.0.8',
@@ -35,9 +35,8 @@ classifiers = [
 
 [tool.hatch.build]
 exclude = [
+  "*.gz",
   "*.pt",
-  "*.cpkt",
-  "tabpfn/datasets/*.pickle",
 ]
 
 [project.urls]

@@ -37,7 +37,7 @@ class PFNOptimizer(AbstractOptimizer):
         self.bounds = self.space_x.get_bounds()
         self.device = device
 
-        self.model = torch.load(os.path.dirname(__file__) + '/' + pfn_file)
+        self.model = torch.load(pfn_file) if pfn_file.startswith('/') else torch.load(os.path.dirname(__file__) + '/' + pfn_file)
 
         self.X = []
         self.y = []
