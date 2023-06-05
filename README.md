@@ -1,4 +1,4 @@
-# PFNs4BO: In-Context Learning for Bayesian Optimization ([Arxiv](https://arxiv.org/abs/2305.17535))
+# PFNs4BO: In-Context Learning for Bayesian Optimization
 
 
 ## Install
@@ -218,7 +218,7 @@ train.train(**add_criterion(config_bnn))
 ### Problem Handling
 **Out of memory during inference**: It might be fixed by changing `max_dataset_size=10_000` to something smaller on either interface.
 
-### You can cite our work with
+### You can cite our ([paper](https://arxiv.org/abs/2305.17535)) with
 ```
 @article{muller2023pfns,
   title={PFNs4BO: In-Context Learning for Bayesian Optimization},
