@@ -1,4 +1,4 @@
-# PFNs Are Flexible Models for Real-World Bayesian Optimization
+# PFNs4BO: In-Context Learning for Bayesian Optimization ([Arxiv](https://arxiv.org/abs/2305.17535))
 
 
 ## Install
@@ -217,3 +217,13 @@ train.train(**add_criterion(config_bnn))
 
 ### Problem Handling
 **Out of memory during inference**: It might be fixed by changing `max_dataset_size=10_000` to something smaller on either interface.
+
+### You can cite our work with
+```
+@article{muller2023pfns,
+  title={PFNs4BO: In-Context Learning for Bayesian Optimization},
+  author={M{\"u}ller, Samuel and Feurer, Matthias and Hollmann, Noah and Hutter, Frank},
+  journal={arXiv preprint arXiv:2305.17535},
+  year={2023}
+}
+```
