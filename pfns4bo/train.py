@@ -1,6 +1,6 @@
-import os
+from __future__ import annotations
+
 import itertools
-import argparse
 import time
 import yaml
 from contextlib import nullcontext
@@ -16,7 +16,6 @@ from . import priors
 from .transformer import TransformerModel
 from .bar_distribution import BarDistribution, FullSupportBarDistribution, get_bucket_limits, get_custom_bar_dist
 from .utils import get_cosine_schedule_with_warmup, get_openai_lr, StoreDictKeyPair, get_weighted_single_eval_pos_sampler, get_uniform_single_eval_pos_sampler
-from . import encoders
 from . import positional_encodings
 from .utils import init_dist
 
@@ -28,10 +27,10 @@ class Losses():
     get_BarDistribution = BarDistribution
 
 
-def train(priordataloader_class: prior.PriorDataLoader, criterion, encoder_generator, emsize=200, nhid=200, nlayers=6, nhead=2, dropout=0.0,
-          epochs=10, steps_per_epoch=100, batch_size=200, bptt=10, lr=None, weight_decay=0.0, warmup_epochs=10, input_normalization=False,
+def train(priordataloader_class_or_get_batch: prior.PriorDataLoader | callable, criterion, encoder_generator, emsize=200, nhid=200, nlayers=6, nhead=2, dropout=0.0,
+          epochs=10, steps_per_epoch=100, batch_size=200, seq_len=10, lr=None, weight_decay=0.0, warmup_epochs=10, input_normalization=False,
           y_encoder_generator=None, pos_encoder_generator=None, decoder_dict={}, extra_prior_kwargs_dict={}, scheduler=get_cosine_schedule_with_warmup,
-          load_weights_from_this_state_dict=None, validation_period=10, single_eval_pos_gen=None, bptt_extra_samples=None, gpu_device='cuda:0',
+          load_weights_from_this_state_dict=None, validation_period=10, single_eval_pos_gen=None, gpu_device='cuda:0',
           aggregate_k_gradients=1, verbose=True, style_encoder_generator=None, epoch_callback=None, step_callback=None, continue_model=None,
           initializer=None, initialize_with_model=None, train_mixed_precision=False, efficient_eval_masking=True, border_decoder=None
           , num_global_att_tokens=0, progress_bar=False, **model_extra_args):
@@ -40,16 +39,18 @@ def train(priordataloader_class: prior.PriorDataLoader, criterion, encoder_gener
     using_dist, rank, device = init_dist(device)
     single_eval_pos_gen = single_eval_pos_gen if callable(single_eval_pos_gen) else lambda: single_eval_pos_gen
 
+    if not isinstance(priordataloader_class_or_get_batch, prior.PriorDataLoader):
+        priordataloader_class = priors.utils.get_batch_to_dataloader(priordataloader_class_or_get_batch)
+    else:
+        priordataloader_class = priordataloader_class_or_get_batch
+
     def eval_pos_seq_len_sampler():
         single_eval_pos = single_eval_pos_gen()
-        if bptt_extra_samples and False: # TODO: Currently disabled
-            return single_eval_pos, single_eval_pos + bptt_extra_samples
-        else:
-            return single_eval_pos, bptt
+        return single_eval_pos, seq_len
     dl = priordataloader_class(num_steps=steps_per_epoch,
                                batch_size=batch_size,
                                eval_pos_seq_len_sampler=eval_pos_seq_len_sampler,
-                               seq_len_maximum=bptt,#+(bptt_extra_samples if bptt_extra_samples else 0) # TODO: Currently disabled
+                               seq_len_maximum=seq_len,
                                device=device,
                                **extra_prior_kwargs_dict)
 
@@ -57,7 +58,7 @@ def train(priordataloader_class: prior.PriorDataLoader, criterion, encoder_gener
     style_def = test_batch.style
     print(f'Style definition of first 3 examples: {style_def[:3] if style_def is not None else None}')
     style_encoder = style_encoder_generator(style_def.shape[1], emsize) if (style_def is not None) else None
-    pos_encoder = (pos_encoder_generator or positional_encodings.NoPositionalEncoding)(emsize, bptt * 2)
+    pos_encoder = (pos_encoder_generator or positional_encodings.NoPositionalEncoding)(emsize, seq_len * 2)
     if isinstance(criterion, nn.GaussianNLLLoss):
         n_out = 2
     elif isinstance(criterion, BarDistribution) or "BarDistribution" in criterion.__class__.__name__: # TODO remove this fix (only for dev)
@@ -162,11 +163,6 @@ def train(priordataloader_class: prior.PriorDataLoader, criterion, encoder_gener
             with cm:
                 time_to_get_batch = time.time() - before_get_batch
                 before_forward = time.time()
-                # TODO: This disables the bptt_extra_samples functionality but otherwise single eval pos is overwritten
-                #if bptt_extra_samples is None:
-                #    single_eval_pos = single_eval_pos_gen() if callable(single_eval_pos_gen) else single_eval_pos_gen
-                #else:
-                #    single_eval_pos = targets.shape[0] - bptt_extra_samples
                 try:
                     metrics_to_log = {}
                     with autocast(enabled=scaler is not None):
@@ -247,11 +243,11 @@ def train(priordataloader_class: prior.PriorDataLoader, criterion, encoder_gener
                     if not torch.isnan(loss):
                         total_loss += loss.cpu().detach().item()
                         total_positional_losses += losses.mean(1).cpu().detach() if single_eval_pos is None else \
-                            nn.functional.one_hot(torch.tensor(single_eval_pos), bptt)*\
-                            utils.torch_nanmean(losses[:bptt-single_eval_pos].mean(0)).cpu().detach()
+                            nn.functional.one_hot(torch.tensor(single_eval_pos), seq_len)*\
+                            utils.torch_nanmean(losses[:seq_len-single_eval_pos].mean(0)).cpu().detach()
 
-                        total_positional_losses_recorded += torch.ones(bptt) if single_eval_pos is None else \
-                            nn.functional.one_hot(torch.tensor(single_eval_pos), bptt)
+                        total_positional_losses_recorded += torch.ones(seq_len) if single_eval_pos is None else \
+                            nn.functional.one_hot(torch.tensor(single_eval_pos), seq_len)
 
                         metrics_to_log = {**metrics_to_log, **{f"loss": loss, "single_eval_pos": single_eval_pos}}
                         if step_callback is not None and rank == 0:
