@@ -1,6 +1,8 @@
 # PFNs4BO: In-Context Learning for Bayesian Optimization
 
 
+**Disclaimer** This repo is not actively maintained anymore. Please, come over to https://github.com/automl/PFNs .
+
 ## Install
 ```bash
 pip install pfns4bo
