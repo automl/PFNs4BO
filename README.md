@@ -222,10 +222,20 @@ train.train(**add_criterion(config_bnn))
 
 ### You can cite our [paper](https://arxiv.org/abs/2305.17535) with
 ```
-@article{muller2023pfns,
-  title={PFNs4BO: In-Context Learning for Bayesian Optimization},
-  author={M{\"u}ller, Samuel and Feurer, Matthias and Hollmann, Noah and Hutter, Frank},
-  journal={arXiv preprint arXiv:2305.17535},
-  year={2023}
+
+@InProceedings{pmlr-v202-muller23a,
+  title = 	 {{PFN}s4{BO}: In-Context Learning for {B}ayesian Optimization},
+  author =       {M\"{u}ller, Samuel and Feurer, Matthias and Hollmann, Noah and Hutter, Frank},
+  booktitle = 	 {Proceedings of the 40th International Conference on Machine Learning},
+  pages = 	 {25444--25470},
+  year = 	 {2023},
+  editor = 	 {Krause, Andreas and Brunskill, Emma and Cho, Kyunghyun and Engelhardt, Barbara and Sabato, Sivan and Scarlett, Jonathan},
+  volume = 	 {202},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {23--29 Jul},
+  publisher =    {PMLR},
+  pdf = 	 {https://proceedings.mlr.press/v202/muller23a/muller23a.pdf},
+  url = 	 {https://proceedings.mlr.press/v202/muller23a.html}
 }
+
 ```
